@@ -5,28 +5,7 @@ require 'net/http'
 require 'hpricot'
 
 module Scrape
-  def bold(val, *args)
-    case
-    when val.is_a?(Array)
-      if args.empty?
-        val
-      else
-        val.map do |str|
-          args.any? { |a| str =~ /^#{a}/ } ? "\033[1m#{str}\033[0m" : str
-        end
-      end
-    else
-      args.all? ? "\033[1m#{val}\033[0m" : val
-    end
-  end
-
-  def log(str)
-    print "\033[2K\033[0G#{str}"
-  end
-
-  module_function :bold, :log
-
-  module MU
+  class MU
     class Entry
       attr_accessor :url, :title, :tags, :year, :rating
     end
@@ -157,20 +136,5 @@ module Scrape
         end
       end
     end
-
-    def example
-      # just a random tag lol
-      tag = ARGV.size > 0 ? ARGV[0] : 'Existential'
-
-      results = EntrySet.new(tag,
-                            :min_year => 2005,
-                            :min_rating => 7.2,
-                            :reject_tags => ['Yaoi', 'Josei', 'Shoujo', 'Doujinshi', 'Hentai', 'Shotacon', 'Shounen Ai', 'Shoujo Ai', 'Yuri'])
-      results.sort_by!(&:rating).reverse!
-
-      puts results.to_s
-    end
-
-    module_function :example
   end
 end
