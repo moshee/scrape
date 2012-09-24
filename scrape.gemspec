@@ -8,9 +8,9 @@ Gem::Specification.new do |gem|
   gem.version       = Scrape::VERSION
   gem.authors       = ["moshee"]
   gem.email         = ["teh.moshee@gmail.com"]
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
-  gem.homepage      = ""
+  gem.description   = 'A set of scrapers for various websites.'
+  gem.summary       = ''
+  gem.homepage      = ''
 
   gem.files         = `git ls-files`.split($/)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
