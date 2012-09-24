@@ -149,40 +149,6 @@ module Scrape
         resp.body if resp.code == '200'
       end
 
-      def example
-        require 'erubis'
-
-        s = Scrape::ANN.upcoming_shows.map(&:populate!)
-
-        tmpl = <<-END
-        <table border=1>
-        <thead><tr><th>title</th><th>url</th><th>img_url</th><th>kind</th><th>start_date</th><th>end_date</th><th>director</th><th>writer</th><th>music</th><th>character_designer</th><th>studio</th><th>summary</th></tr></thead>
-
-        <tbody>
-        <% s.each do |show| %>
-          <tr>
-            <td><%= show.title %></td>
-            <td><a href="<%= show.url %>">link</a></td>
-            <td><a href="<%= show.img_url %>">img</a></td>
-            <td><%= show.kind.to_s %></td>
-            <td><%= show.start_date %></td>
-            <td><%= show.end_date %></td>
-            <td><%= show.director %></td>
-            <td><%= show.writer %></td>
-            <td><%= show.music %></td>
-            <td><%= show.character_designer %></td>
-            <td><%= show.studio %></td>
-            <td><%= show.summary %></td>
-          </tr>
-        <% end %>
-        </tbody>
-        </table>
-        END
-
-        eruby = Erubis::Eruby.new(tmpl)
-        puts eruby.result(:s => s)
-      end
-
       private
 
       def date(date)
