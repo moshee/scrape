@@ -9,10 +9,10 @@ Gem::Specification.new do |gem|
   gem.authors       = ["moshee"]
   gem.email         = ["teh.moshee@gmail.com"]
   gem.description   = 'A set of scrapers for various websites.'
-  gem.summary       = ''
-  gem.homepage      = ''
+  gem.summary       = 'A set of scrapers for various websites.'
+  gem.homepage      = 'http://github.com/moshee/scrape'
 
-  gem.files         = `git ls-files`.split($/)
+  gem.files         = %w(.gitignore README.md lib/scrape.rb lib/scrape/ann.rb lib/scrape/mal.rb lib/scrape/mu.rb lib/scrape/version.rb lib/scrape/base.rb)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ["lib"]

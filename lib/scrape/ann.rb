@@ -1,14 +1,16 @@
-#!/usr/bin/env ruby
 # encoding: utf-8
 
 require 'net/http'
 require 'hpricot'
+require 'date'
 
 module Scrape
-  class ANN
-    class Result < Scrape::Anime
+  class ANN < Base
+    @base_url = 'www.animenewsnetwork.com'
+    @user_agent = 'scrape/ann'
+
+    class Result < Anime
       def populate!
-        sleep 1
         return self if @url.empty?
         page = ANN.get_page(@url)
         return self if page.nil?
@@ -27,10 +29,10 @@ module Scrape
               @alt_titles = info.search('div.tab').map(&:inner_text)
 
             when 7 # vintage
-              @start_date = info.at('span').inner_text
+              @start_date = Date.strptime(info.at('span').inner_text, '%Y-%m-%d')
 
             when 9 # premiere date (for movies)
-              @start_date = info.at('div.tab').inner_text
+              @start_date = Date.strptime(info.at('div.tab').inner_text, '%Y-%m-%d')
 
             when 10 # official website
               @website = info.at('a').attributes['href']
@@ -68,7 +70,7 @@ module Scrape
           end
         end
 
-        self
+        super
       end
 
       def inspect
@@ -144,11 +146,6 @@ module Scrape
         results
       end
 
-      def get_page(path)
-        resp = Net::HTTP.new('www.animenewsnetwork.com').request_get(path, 'User-Agent' => 'lib/scrape/ann.rb')
-        resp.body if resp.code == '200'
-      end
-
       private
 
       def date(date)
@@ -161,27 +158,23 @@ module Scrape
           [date, nil]
         when 3
           if parts[2] == '...'
-            [parts[0], '']
+            [parts[0], nil]
           else
             [parts[0], parts[2]]
           end
         else
           [nil, nil]
+        end.map do |date|
+          date.nil? ? nil : Date.new(*date.split('-').map(&:to_i))
         end
+
       end
 
       def title_type_season(s)
         re = / \((\w+)( \d+)?\)$/
         s.match re
         s.gsub! re, '' if not $1.nil?
-        type = case $1
-               when 'TV' then :tv
-               when 'movie' then :movie
-               when 'OVA' then :ova
-               when 'ONA' then :ona
-               when 'OAV' then :oav
-               else nil
-               end
+        type = $1 ? $1.downcase.intern : nil
 
         # if not first season (second capture group), it will show up as (TV 2) or something
         [s, type, $2.nil? ? 0 : $2.to_i]
