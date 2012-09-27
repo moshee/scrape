@@ -6,6 +6,6 @@ Most of the scrapers will be written in Ruby. If I find that I need performance,
 
 I am experimenting with packaging gems as well. It appears to function correctly as a gem.
 
-There is no license. I don't care what you do with this.
+License is inherited from dependencies where applicable.
 
 Documentation is YARD-style. I can't guarantee its quality, though.
