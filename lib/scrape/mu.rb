@@ -13,19 +13,21 @@ module Scrape
     class EntrySet < Array
       include Scrape
 
-      # options:
-      # :min_rating => (0.0 .. 10.0)
-      #   In #to_s, make entries rated above this value bold
-      # :max_rating => (0.0 .. 10.0)
-      #   In #to_s, make entries rated below this value bold
-      # :min_year => (0 .. ∞)
-      #   In #to-s, make entries dated after this year bold
-      # :max_year => (0 .. ∞)
-      #   In #to-s, make entries dated before this year bold
-      # :highlight_tags => [ … ]
-      #   In #to_s, make any tags that appear in this list bold
-      # :reject_tags => [ … ]
-      #   Reject entries whose tags include any tag from this list
+      # @param tag [String] A single tag to search for
+      # @option options [Float] :min_rating (0.0) In #to_s, make entries rated above this value bold
+      # @option options [Float] :max_rating (10.0) In #to_s, make entries rated below this value bold
+      # @option options [Integer] :min_year (0) In #to-s, make entries dated after this year bold
+      # @option options [Integer] :max_year (0) In #to-s, make entries dated before this year bold
+      # @option options [Array] :highlight_tags ([]) In #to_s, make any tags that appear in this list bold
+      # @option options [Array] :reject_tags ([]) Reject entries whose tags include any tag from this list
+      # @example
+      #   results = EntrySet.new(tag,
+      #   					:min_year => 2005,
+      #   					:min_rating => 7.2,
+      #   					:reject_tags => ['Yaoi', 'Josei', 'Shoujo', 'Doujinshi', 'Hentai', 'Shotacon', 'Shounen Ai', 'Shoujo Ai', 'Yuri'])
+      #   results.sort_by!(&:rating).reverse!
+
+puts results.to_s
       def initialize(tag, options)
         @min_rating     = options[:min_rating]     || 0.0
         @max_rating     = options[:max_rating]     || 10.0

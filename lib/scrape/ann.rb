@@ -10,6 +10,8 @@ module Scrape
     @user_agent = 'scrape/ann'
 
     class Result < Anime
+      # @return [self]
+      # @see Scrape::Anime#populate!
       def populate!
         return self if @url.empty?
         page = ANN.get_page(@url)
@@ -79,7 +81,10 @@ module Scrape
     end
 
     class << self
-      def latest_shows(options = {}) # -> ResultSet
+      # @option options [Integer] :limit (100) Limit results to this many
+      # @option options [Array<Symbol>] :show ([:tv]) Limit results to these types (any of `:tv`, `:movie`, `:oav`, or `:ona`)
+      # @return [Array<Anime>] the latest shows
+      def latest_shows(options = {})
         @limit = options[:limit] || 100
         @show = options[:show] || [:tv]
 
@@ -110,6 +115,14 @@ module Scrape
         results
       end
 
+      # @return [Array<Anime>] canned list of "upcoming" shows in the next season.
+      # @example
+      #   require 'erubis'
+      #   
+      #   s = Scrape::ANN.upcoming_shows.map(&:populate!) # this will block for around 30s to a minute
+      #   erb = File.open('index.html.erb').read
+      #   eruby = Erubis::Eruby.new(erb)
+      #   puts eruby.result(:shows => s)
       def upcoming_shows
         results = []
 

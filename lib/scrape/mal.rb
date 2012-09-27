@@ -10,6 +10,8 @@ module Scrape
     @user_agent = 'scrape/mal'
 
     class Result < Anime
+      # @return [self]
+      # @see Scrape::Anime#populate!
       def populate!
         return self if @url.empty?
         page = Net::HTTP.get(URI(@url))
@@ -102,7 +104,8 @@ module Scrape
     end # class Result
 
     class << self
-      def latest_shows(debug = false)
+      # @return [Array<Anime>] all shows in the database that have not yet aired
+      def latest_shows
         n = 0
         base_path = '/anime.php?q=&type=0&score=0&status=3&tag=&p=0&r=0&sm=0&sd=0&sy=0&em=0&ed=0&ey=0&c[0]=a&c[1]=b&c[2]=d&c[3]=e&gx=0'
         results = []
@@ -142,7 +145,7 @@ module Scrape
 
           # if last element in div is not a link, we have reached the end. break.
           links = doc.at('#content form[@method="GET"] ~ div.borderClass').search('a')
-          break if debug or links.size == 0 or not links[-1].inner_text =~ /Next/
+          break if links.size == 0 or not links[-1].inner_text =~ /Next/
 
           n += 20
         end
