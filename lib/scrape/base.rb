@@ -156,20 +156,16 @@ module Scrape
     # @yieldparam sym [Symbol] name of instance variable
     # @yieldreturn [Boolean] whether or not to merge the field. default true.
     # @return [self]
-    # @todo this
     def merge(other)
       if other.is_a? Anime
-        puts 'other is_a Anime'
         instance_variables.each do |sym|
           var = instance_variable_get(sym)
           other_var = other.instance_variable_get(sym)
-          puts "#{sym}: #{var.inspect} vs #{other_var.inspect}"
           # skip this iteration (don't merge) if block returns false
           next if block_given? and not yield var, other_var, sym
 
           # only merge if self's value is empty and the value offered is not empty
           if is_empty?(var) and not is_empty?(other_var)
-            puts "conditions are ripe"
             instance_variable_set(sym, other_var)
           end
         end
@@ -190,7 +186,7 @@ module Scrape
       "#<#{self.class.name}:\"#{@title}\" [#{@kind}]>"
     end
 
-    # @return [Array<String>] string representations of each key and value.
+    # @return [self]
     def dump
       instance_variables.each do |var|
         puts "#{var.to_s.sub(/^@/, '')}: #{instance_variable_get(var).inspect}"
@@ -208,7 +204,7 @@ module Scrape
           arr2.each do |b|
             aa, bb = a.title.downcase, b.title.downcase
             if (aa ^ bb) > 0.78
-              a.merge(b, block)
+              a.merge(b, &block)
               arr2.delete b
               break
             else
