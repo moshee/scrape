@@ -198,12 +198,12 @@ module Scrape
       # string comparison, and if that fails, Jaro-Winkler string distance.
       # @param arr1 [Array<Anime>]
       # @return [Array<Anime>] merged array
-      def merge(arr1, arr2)
+      def merge(arr1, arr2, &block)
         arr1.each do |a|
           arr2.each do |b|
             aa, bb = a.title.downcase, b.title.downcase
             if (aa ^ bb) > 0.78
-              a << b
+              a.merge(b, block)
               arr2.delete b
               break
             else
