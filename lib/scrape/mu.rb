@@ -5,6 +5,7 @@ require 'net/http'
 require 'hpricot'
 
 module Scrape
+  # Deprecated class structure but still works.
   class MU
     class Entry
       attr_accessor :url, :title, :tags, :year, :rating
@@ -26,8 +27,7 @@ module Scrape
       #   					:min_rating => 7.2,
       #   					:reject_tags => ['Yaoi', 'Josei', 'Shoujo', 'Doujinshi', 'Hentai', 'Shotacon', 'Shounen Ai', 'Shoujo Ai', 'Yuri'])
       #   results.sort_by!(&:rating).reverse!
-
-puts results.to_s
+      #   puts results.to_s
       def initialize(tag, options)
         @min_rating     = options[:min_rating]     || 0.0
         @max_rating     = options[:max_rating]     || 10.0
@@ -138,5 +138,27 @@ puts results.to_s
         end
       end
     end
-  end
+
+    class << self
+      private
+
+      def bold(val, *args)
+        if val.is_a?(Array)
+          if args.empty?
+            val
+          else
+            val.map do |str|
+              args.any? { |a| str =~ /^#{a}/ } ? "\033[1m#{str}\033[0m" : str
+            end
+          end
+        else
+          args.all? ? "\033[1m#{val}\033[0m" : val
+        end
+      end
+
+      def log(str)
+        $stderr.print "\033[2K\033[0G#{str}"
+      end
+    end
+  end # class MU
 end

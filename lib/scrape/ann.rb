@@ -29,27 +29,29 @@ module Scrape
             case $1.to_i
             when 2 # alt titles
               @alt_titles = info.search('div.tab').map(&:inner_text)
-
+            when 3 # number of episodes
+              @episodes = info.at('span').inner_text
+            when 4 # running time
             when 7 # vintage
-              @start_date = Date.strptime(info.at('span').inner_text, '%Y-%m-%d')
-
+              dates = info.at('span').inner_text.split(' to ')
+              @start_date = Date.strptime(dates[0], '%Y-%m-%d')
+              @end_date = Date.strptime(dates[1], '%Y-%m-%d')
             when 9 # premiere date (for movies)
               @start_date = Date.strptime(info.at('div.tab').inner_text, '%Y-%m-%d')
-
             when 10 # official website
               @website = info.at('a').attributes['href']
-              
             when 12 # summary
               @summary = info.at('span').inner_text
-
+            when 17 # objectionable content
             when 19 # pic
               @img_url = info.at('a').attributes['href']
-
             when 25 # episode count/titles
               info.at('a').inner_text =~ /We have (\d+)$/
               if not $1.nil?
                 @episodes = $1.to_i
               end
+            when 30 # genres
+            when 31 # themes
             end
           rescue
             next
@@ -74,15 +76,12 @@ module Scrape
 
         super
       end
-
-      def inspect
-        "#{@title} [#{@kind}, #{@start_date + (@end_date.empty? ? '' : ' - ' + @end_date)}, #{@url[0..20]}..., #{@img_url[0..20]}..., #{@summary[0..20]}...]"
-      end
     end
 
     class << self
       # @option options [Integer] :limit (100) Limit results to this many
       # @option options [Array<Symbol>] :show ([:tv]) Limit results to these types (any of `:tv`, `:movie`, `:oav`, or `:ona`)
+      # @yield [self]
       # @return [Array<Anime>] the latest shows
       def latest_shows(options = {})
         @limit = options[:limit] || 100
@@ -94,12 +93,10 @@ module Scrape
           url << "&show#{map[s]}=1"
         end
 
-        doc = Hpricot(get_page(url))
+        page = get_page(url)
+        doc = Hpricot(page)
         table = doc.at '#content-zone form[@name="listform"] ~ table[@border="0"]'
-        if table.nil?
-          puts 'table not found'
-          return nil
-        end
+        return nil if table.nil?
 
         trs = table.search 'tr'
         results = []
@@ -110,11 +107,13 @@ module Scrape
           start_date, end_date = date tds[1].inner_text
 
           results << Result.new(:url => url, :title => name, :kind => type, :start_date => start_date, :end_date => end_date, :season => season)
+          yield results if block_given?
         end
 
         results
       end
 
+      # @yield [self]
       # @return [Array<Anime>] canned list of "upcoming" shows in the next season.
       # @example
       #   require 'erubis'
@@ -127,7 +126,8 @@ module Scrape
         results = []
 
         ['tv', 'movie', 'oav'].each do |section|
-          doc = Hpricot(get_page('/encyclopedia/anime/upcoming/' + section))
+          page = get_page('/encyclopedia/anime/upcoming/' + section)
+          doc = Hpricot(page)
           table = doc.at '#content-zone table.datalist'
           next if table.nil?
 
@@ -150,9 +150,16 @@ module Scrape
             title, type, season = title_type_season a.inner_text
             summary = tds[1].children.select(&:text?).join("\n")
 
-            date = tds[2].inner_text
+            start_date, _ = date tds[2].inner_text
 
-            results << Result.new(:url => url, :title => title, :kind => section.intern, :season => season, :img_url => img_url, :summary => summary, :start_date => date)
+            results << Result.new(:url        => url,
+                                  :title      => title,
+                                  :kind       => section.intern,
+                                  :season     => season,
+                                  :img_url    => img_url,
+                                  :summary    => summary,
+                                  :start_date => start_date)
+            yield results if block_given?
           end
         end
 
@@ -161,26 +168,11 @@ module Scrape
 
       private
 
-      def date(date)
-        return [nil, nil] if date.to_s.empty?
-        start_date = ''
-        end_date = ''
-        parts = date.split(' ')
-        case parts.size
-        when 1
-          [date, nil]
-        when 3
-          if parts[2] == '...'
-            [parts[0], nil]
-          else
-            [parts[0], parts[2]]
-          end
-        else
-          [nil, nil]
-        end.map do |date|
-          date.nil? ? nil : Date.new(*date.split('-').map(&:to_i))
+      def date(str)
+        return nil if str.empty? or str == '-'
+        str.split(' to ').map do |part|
+          part == '...' ? nil : Date.new(*part.split('-').map(&:to_i))
         end
-
       end
 
       def title_type_season(s)

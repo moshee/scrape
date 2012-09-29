@@ -1,6 +1,8 @@
 # encoding: utf-8
 
 require 'net/http'
+require 'json'
+require 'jaro'
 
 module Scrape
   # :nodoc:
@@ -14,9 +16,9 @@ module Scrape
     :summer, # jun
     :summer, # jul
     :summer, # aug
-    :autumn,   # sep
-    :autumn,   # oct
-    :autumn,   # nov
+    :autumn, # sep
+    :autumn, # oct
+    :autumn, # nov
     :winter, # dec
   ]
 
@@ -29,7 +31,7 @@ module Scrape
 
       def get_page(url)
         return '' if @base_url.empty?
-        resp = Net::HTTP.new(@base_url).request_get(url, 'User-Agent' => @user_agent)
+        resp = Net::HTTP.new(URI.encode(@base_url)).request_get(url, 'User-Agent' => @user_agent)
         resp.code == '200' ? resp.body : ''
       end
     end
@@ -78,13 +80,13 @@ module Scrape
     #   @return [Array<String>] alternative titles
     # @!attribute [r] populated
     #   @return [Boolean] true if #populate! has been called
-    def initialize(o = {})
+    #
+    # @param o [Hash] options
+    def initialize(o)
       @url                = o[:url]                || ''
       @img_url            = o[:img_url]            || ''
       @title              = o[:title]              || ''
       @kind               = o[:kind]               || nil
-      @start_date         = o[:start_date]         || nil
-      @end_date           = o[:end_date]           || nil
       @season             = o[:season]             || 0
       @summary            = o[:summary]            || ''
       @director           = o[:director]           || ''
@@ -98,6 +100,22 @@ module Scrape
 
       @alt_titles         = []
       @populated          = false
+
+      start_date = o[:start_date]
+      @start_date = case start_date.class
+      when String
+        Date.strptime(start_date, '%Y-%m-%d')
+      when Date, NilClass
+        start_date
+      end
+
+      end_date = o[:end_date]
+      @end_date = case end_date.class
+      when String
+        Date.strptime(end_date, '%Y-%m-%d')
+      when Date, NilClass
+        end_date
+      end
     end
     attr_reader :title, :kind, :start_date, :end_date, :url, :img_url
     attr_reader :summary, :director, :writer, :music, :character_designer
@@ -106,12 +124,11 @@ module Scrape
     # @abstract Populates data fields. Modifies `self`. It is up to the
     #   subclass to implement its own fetch and parse routines and call
     #   `super`.
-    #   For rate control, `populate!` sleeps for one second. If one wanted to
-    #   override this while retaining otherwise predictable behavior, simply
-    #   set `@populated` to `true` on successful operation and return `self`.
-    #
+    #   For rate control, `populate!` sleeps for one second.
+    # @yield [self]
     # @return [self]
     def populate!
+      yield self if block_given?
       sleep 1
       @populated = true
       self
@@ -134,22 +151,34 @@ module Scrape
 
     # Merge fields from other into self.
     # @param other [Anime] other dataset.
+    # @yieldparam var [Object] self's instance variable
+    # @yieldparam other_var [Object] other's instance variable
+    # @yieldreturn [Boolean] whether or not to merge the field. default true.
     # @return [self]
-    # @todo merging rules, for now just taking missing info from other into self
-    def <<(other)
+    # @todo this
+    def merge(other)
       if other.is_a? Anime
         instance_variables.each do |sym|
           var = instance_variable_get(sym)
-          instance_variable_set(sym, other.instance_variable_get(sym)) if
-          case var.class
-          when NilClass then true
-          when String then var.empty?
-          when Integer then var.zero?
-          end
+          other_var = instance_variable_get(sym)
+          next if block_given? and not yield var, other_var
+
+          instance_variable_set(sym, other_var) if case var.class
+            when String then var.empty?
+            when Integer then var <= 0
+            else true
+            end
         end
       end
 
       self
+    end
+
+    # @return [String] JSON serialization
+    def to_json
+      Hash[instance_variables.map do |sym|
+        [sym.to_s.sub(/^@/, ''), instance_variable_get(sym)]
+      end].to_json
     end
 
     # @return [String]
@@ -163,25 +192,45 @@ module Scrape
         "#{var.to_s.sub(/^@/, '')}: #{instance_variable_get var}"
       end
     end
-  end
 
-  def bold(val, *args)
-    if val.is_a?(Array)
-      if args.empty?
-        val
-      else
-        val.map do |str|
-          args.any? { |a| str =~ /^#{a}/ } ? "\033[1m#{str}\033[0m" : str
+    class << self
+      # Merge two arrays. Compares the titles of each element using direct
+      # string comparison, and if that fails, Jaro-Winkler string distance.
+      # @param arr1 [Array<Anime>]
+      # @return [Array<Anime>] merged array
+      def merge(arr1, arr2)
+        arr1.each do |a|
+          arr2.each do |b|
+            aa, bb = a.title.downcase, b.title.downcase
+            if aa == bb or (aa ^ bb) > 0.78
+              a << b
+              arr2.delete b
+              break
+            else
+              arr1 << b
+            end
+          end
+        end
+        arr1
+      end
+
+      # Parse JSON data into a Ruby data structure. JSON must have the format '{"shows": [ { … }, … ]}'
+      # @param str [String] JSON data
+      # @return [Array<Anime>]
+      def json(str)
+        list = JSON.parse(str, :symbolize_names => true)[:shows]
+        return nil if list.nil?
+        list.map do |opts|
+          Anime.new(opts)
         end
       end
-    else
-      args.all? ? "\033[1m#{val}\033[0m" : val
     end
-  end
 
-  def log(str)
-    $stderr.print "\033[2K\033[0G#{str}"
-  end
+    private
 
-  module_function :bold, :log
+    # @api private
+    # set instance variable to val only if it is a zero value
+    def guarded_instance_variable_set(sym, val)
+    end
+  end # class Anime
 end

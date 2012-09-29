@@ -14,14 +14,14 @@ module Scrape
       # @see Scrape::Anime#populate!
       def populate!
         return self if @url.empty?
-        page = Net::HTTP.get(URI(@url))
+        page = Net::HTTP.get(URI(URI.encode(@url)))
         return self if page.empty?
         doc = Hpricot(page)
 
         # sidebar information
         table = doc.at('#content table')
         sidebar = table.at('td.borderClass').search('h2[. = "Information"] ~ div') rescue nil
-        if sidebar
+        if sidebar.size > 0
           sidebar.each do |div|
             key = div.at('span.dark_text').inner_text.sub(/:$/, '')
             val = div.children.select { |elem| elem.text? or elem.pathname == 'a' }.map(&:inner_text).join('').strip
@@ -48,7 +48,7 @@ module Scrape
         table = doc.at('a[@name="staff"] ~ table')
         table.search('tr').each do |tr|
           td = tr.search('td')[1] rescue next
-          roles = td.at('small').inner_text.split(', ')
+          roles = td.at('small').inner_text.split(', ') rescue next
           # TODO canonicalize name order if needed
           name = td.at('a').inner_text.delete(',')
 
@@ -104,8 +104,9 @@ module Scrape
     end # class Result
 
     class << self
+      # @yield [self]
       # @return [Array<Anime>] all shows in the database that have not yet aired
-      def latest_shows
+      def latest_shows(debug=false)
         n = 0
         base_path = '/anime.php?q=&type=0&score=0&status=3&tag=&p=0&r=0&sm=0&sd=0&sy=0&em=0&ed=0&ey=0&c[0]=a&c[1]=b&c[2]=d&c[3]=e&gx=0'
         results = []
@@ -141,11 +142,12 @@ module Scrape
             end_date = date tds[5].inner_text
 
             results << Result.new(:img_url => img_url, :title => title, :url => url, :kind =>  kind, :episodes => episodes, :start_date => start_date, :end_date => end_date)
+            yield results if block_given?
           end
 
           # if last element in div is not a link, we have reached the end. break.
           links = doc.at('#content form[@method="GET"] ~ div.borderClass').search('a')
-          break if links.size == 0 or not links[-1].inner_text =~ /Next/
+          break if debug or links.size == 0 or not links[-1].inner_text =~ /Next/
 
           n += 20
         end
