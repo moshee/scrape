@@ -202,7 +202,7 @@ module Scrape
         arr1.each do |a|
           arr2.each do |b|
             aa, bb = a.title.downcase, b.title.downcase
-            if aa == bb or (aa ^ bb) > 0.78
+            if (aa ^ bb) > 0.78
               a << b
               arr2.delete b
               break
