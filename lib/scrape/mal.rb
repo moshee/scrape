@@ -20,12 +20,22 @@ module Scrape
 
         # sidebar information
         table = doc.at('#content table')
-        sidebar = table.at('td.borderClass').search('h2[. = "Information"] ~ div') rescue nil
-        if sidebar.size > 0
+        sidebar = table.at('td.borderClass').search('#editdiv ~ div') rescue nil
+        unless sidebar.nil?
           sidebar.each do |div|
             key = div.at('span.dark_text').inner_text.sub(/:$/, '')
-            val = div.children.select { |elem| elem.text? or elem.pathname == 'a' }.map(&:inner_text).join('').strip
+            val = div.children
+              .select { |elem| elem.text? or elem.pathname == 'a' }
+              .reject { |elem| elem.inner_text =~ /None found/ or elem.attributes['href'] =~ /dbchanges\.php/ }
+              .map(&:inner_text).join('').strip
             case key
+            when 'Japanese'
+              # TODO move this kind of logic into a method
+              case when @alt_titles.empty?, @alt_titles.is_a?(Array)
+                @alt_titles << val
+              when @alt_titles.is_a?(String)
+                @alt_titles = [@alt_titles, val]
+              end
             when 'Type'
               @kind = val.downcase.intern
             when 'Episodes'
@@ -47,7 +57,7 @@ module Scrape
         # </table> and </div> tags.
         table = doc.at('a[@name="staff"] ~ table')
         table.search('tr').each do |tr|
-          td = tr.search('td')[1] rescue next
+          td = tr.search('td')[1]
           roles = td.at('small').inner_text.split(', ') rescue next
           # TODO canonicalize name order if needed
           name = td.at('a').inner_text.delete(',')
@@ -61,7 +71,10 @@ module Scrape
         end
 
         # summary
-        @summary = doc.at('#content #horiznav_nav ~ div td').children.select(&:text?).map { |s| s.inner_text.strip }.reject(&:empty?).join("\n") rescue ''
+        @summary = doc.at('#content #horiznav_nav ~ div td').children
+          .reject { |s| s.pathname == 'h2' or s.inner_text =~ /\(Source: .*\)/ }
+          .map { |s| s.inner_text.strip }
+          .reject(&:empty?).join("\n") rescue ''
 
         super
       end # def populate!

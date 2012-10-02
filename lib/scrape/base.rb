@@ -6,8 +6,8 @@ require 'jaro'
 
 module Scrape
   # :nodoc:
-  # warning: 0 indexed
   SEASONS = [
+    nil,
     :winter, # jan
     :winter, # feb
     :spring, # mar
@@ -86,7 +86,7 @@ module Scrape
       @url                = o[:url]                || ''
       @img_url            = o[:img_url]            || ''
       @title              = o[:title]              || ''
-      @kind               = o[:kind]               || nil
+      @kind               = o[:kind].intern        || nil rescue nil
       @season             = o[:season]             || 0
       @summary            = o[:summary]            || ''
       @director           = o[:director]           || ''
@@ -102,18 +102,18 @@ module Scrape
       @populated          = false
 
       start_date = o[:start_date]
-      @start_date = case start_date.class
-      when String
+      @start_date = case
+      when start_date.is_a?(String)
         Date.strptime(start_date, '%Y-%m-%d')
-      when Date, NilClass
+      when start_date.is_a?(Date), start_date.nil?
         start_date
       end
 
       end_date = o[:end_date]
-      @end_date = case end_date.class
-      when String
+      @end_date = case
+      when end_date.is_a?(String)
         Date.strptime(end_date, '%Y-%m-%d')
-      when Date, NilClass
+      when end_date.is_a?(Date), end_date.nil?
         end_date
       end
     end
@@ -137,7 +137,7 @@ module Scrape
     # @return [Symbol] the starting season: one of `:summer`, `:autumn`, `:winter`, `:spring`
     # @return [nil] if the season is not specified
     def season
-      SEASONS[@start_date.month-1] rescue nil
+      SEASONS[@start_date.month] rescue nil
     end
 
     # @return [Boolean] true if the starting season is summer.
@@ -148,6 +148,10 @@ module Scrape
     def winter?; season == :winter end
     # @return [Boolean] true if the starting season is spring.
     def spring?; season == :spring end
+
+    def id
+      @id || @id = @title.gsub(/[^a-zA-Z0-9\-]/, '').slice(0, 12).downcase + (@start_date.nil? ? '' : @start_date.strftime('-%d%m'))
+    end
 
     # Merge fields from other into self.
     # @param other [Anime] other dataset.
@@ -198,21 +202,20 @@ module Scrape
       # Merge two arrays. Compares the titles of each element using direct
       # string comparison, and if that fails, Jaro-Winkler string distance.
       # @param arr1 [Array<Anime>]
+      # @param arr2 [Array<Anime>]
+      # @param filter [Proc (lambda)] merge will happen if this returns true.
       # @return [Array<Anime>] merged array
-      def merge(arr1, arr2, &block)
-        arr1.each do |a|
-          arr2.each do |b|
-            aa, bb = a.title.downcase, b.title.downcase
-            if (aa ^ bb) > 0.78
+      def merge(arr1, arr2, filter = lambda { |a, b| a.title ^ b.title > 0.78 }, &block)
+        arr1.sort_by(&:title).each do |a|
+          arr2.sort_by(&:title).each do |b|
+            if filter.call(a, b)
               a.merge(b, &block)
               arr2.delete b
               break
-            else
-              arr1 << b
             end
           end
         end
-        arr1
+        arr1 + arr2
       end
 
       # Parse JSON data into a Ruby data structure. JSON must have the format '{"shows": [ { … }, … ]}'
@@ -224,6 +227,12 @@ module Scrape
         list.map do |opts|
           Anime.new(opts)
         end
+      end
+
+      private
+
+      def log(str)
+        $stderr.print "\033[2K\033[0G#{str}"
       end
     end
 

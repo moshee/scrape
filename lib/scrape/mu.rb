@@ -155,10 +155,6 @@ module Scrape
           args.all? ? "\033[1m#{val}\033[0m" : val
         end
       end
-
-      def log(str)
-        $stderr.print "\033[2K\033[0G#{str}"
-      end
     end
   end # class MU
 end
