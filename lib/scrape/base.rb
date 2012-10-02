@@ -212,6 +212,8 @@ module Scrape
               a.merge(b, &block)
               arr2.delete b
               break
+            else
+              arr1 << b
             end
           end
         end
