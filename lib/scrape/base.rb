@@ -45,11 +45,11 @@ module Scrape
     # @!attribute [r] title
     #   @return [String] the title
     # @!attribute [r] kind
-    #   @return [Symbol] the type of series. Can be one of `:tv`, `:ova`, `:movie`, `:special`, `:ona`, `:oav`, and maybe others.
+    #   @return [Symbol] the type of series. Can be one of +:tv+, +:ova+, +:movie+, +:special+, +:ona+, +:oav+, and maybe others.
     # @!attribute [r] start_date
     #   @return [Date] the date on which the first episode was/will be aired
     # @!attribute [r] end_date
-    #   @return [Date] the date on which the last episode was/will be aired. `nil` for movies and other such one-shots.
+    #   @return [Date] the date on which the last episode was/will be aired. +nil+ for movies and other such one-shots.
     # @!attribute [r] season
     #   @return [Integer] the season number
     # @!attribute [r] summary
@@ -121,32 +121,32 @@ module Scrape
     attr_reader :summary, :director, :writer, :music, :character_designer
     attr_reader :studio, :alt_titles, :populated, :website, :original
 
-    # @abstract Populates data fields. Modifies `self`. It is up to the
-    #   subclass to implement its own fetch and parse routines and call
-    #   `super`.
-    #   For rate control, `populate!` sleeps for one second.
+    # @abstract Populates data fields. It is up to the subclass to implement
+    # its own fetch and parse routines and call +super+.
     # @yield [self]
+    # @param rate_control_enabled (Boolean) by default, this method will sleep
+    #   for one second for rate control.
     # @return [self]
-    def populate!
+    def populate!(rate_control_enabled = true)
       yield self if block_given?
-      sleep 1
+      sleep 1 if rate_control_enabled
       @populated = true
       self
     end
 
-    # @return [Symbol] the starting season: one of `:summer`, `:autumn`, `:winter`, `:spring`
-    # @return [nil] if the season is not specified
+    # @return [:summer, :autumn, :winter, :spring]
+    # @return [nil] if +start_date+ is not specified
     def season
       SEASONS[@start_date.month] rescue nil
     end
 
-    # @return [Boolean] true if the starting season is summer.
+    # @return [Boolean] +true+ if the starting season is summer.
     def summer?; season == :summer end
-    # @return [Boolean] true if the starting season is autumn.
+    # @return [Boolean] +true+ if the starting season is autumn.
     def autumn?; season == :autumn end
-    # @return [Boolean] true if the starting season is winter.
+    # @return [Boolean] +true+ if the starting season is winter.
     def winter?; season == :winter end
-    # @return [Boolean] true if the starting season is spring.
+    # @return [Boolean] +true+ if the starting season is spring.
     def spring?; season == :spring end
 
     def id
@@ -169,7 +169,7 @@ module Scrape
           next if block_given? and not yield var, other_var, sym
 
           # only merge if self's value is empty and the value offered is not empty
-          if is_empty?(var) and not is_empty?(other_var)
+          if not is_empty?(other_var)
             instance_variable_set(sym, other_var)
           end
         end
@@ -203,7 +203,7 @@ module Scrape
       # string comparison, and if that fails, Jaro-Winkler string distance.
       # @param arr1 [Array<Anime>]
       # @param arr2 [Array<Anime>]
-      # @param filter [Proc (lambda)] merge will happen if this returns true.
+      # @param filter [Proc] merge will happen if this returns true.
       # @return [Array<Anime>] merged array
       def merge(arr1, arr2, filter = lambda { |a, b| a.title ^ b.title > 0.78 }, &block)
         arr1.sort_by(&:title).each do |a|
@@ -212,23 +212,18 @@ module Scrape
               a.merge(b, &block)
               arr2.delete b
               break
-            else
-              arr1 << b
             end
           end
         end
         arr1 + arr2
       end
 
-      # Parse JSON data into a Ruby data structure. JSON must have the format '{"shows": [ { … }, … ]}'
+      # Parse JSON data into a Ruby data structure. JSON must have the format +{"shows": [ { … }, … ]}+
       # @param str [String] JSON data
       # @return [Array<Anime>]
       def json(str)
         list = JSON.parse(str, :symbolize_names => true)[:shows]
-        return nil if list.nil?
-        list.map do |opts|
-          Anime.new(opts)
-        end
+        list.nil? ? nil : list.map(&Anime.method(:new))
       end
 
       private
